@@ -21,6 +21,7 @@ def arg_parser():
     parser.add_argument('--dataset', help='name of dataset', default='CERT')
     parser.add_argument('--r_ad_alpha', help='hyper-parameter for the reward of anomaly detection', default=1)
     parser.add_argument('--r_cl_alpha', help='hyper-parameter for the reward of anomaly classification', default=1)
+    parser.add_argument('--r_boundary', help='hyper-parameter for the reward of boundary sample selection', default=0.1)
 
 
     # set unseen validation set parameters

@@ -16,19 +16,24 @@ def generate_samples(df_unseen_pseudo, num_samples=100):
     for ind, val in enumerate(n_clusters):
         if ind == 0:
             if len(df_unseen.loc[df_unseen['y_pred'] == val]) >= num_samples:
-                df_samples = df_unseen.loc[df_unseen['y_pred'] == val].sample(num_samples, random_state=42)
+                df_samples = df_unseen.loc[df_unseen['y_pred'] == val].sort_values(by=['dist'], ascending=True)[:num_samples]
             else:
                 df_samples = df_unseen.loc[df_unseen['y_pred'] == val]
         else:
             if len(df_unseen.loc[df_unseen['y_pred'] == val]) >= num_samples:
                 df_samples = pd.concat(
-                    [df_samples, df_unseen.loc[df_unseen['y_pred'] == val].sample(num_samples, random_state=42)])
+                    [df_samples, df_unseen.loc[df_unseen['y_pred'] == val].sort_values(by=['dist'], ascending=True)[:num_samples]])
             else:
                 df_samples = pd.concat([df_samples, df_unseen.loc[df_unseen['y_pred'] == val]])
     df_unseen.drop(df_samples.index.values, inplace=True)
     df_unseen.reset_index(drop=True, inplace=True)
     df_samples.reset_index(drop=True, inplace=True)
-    return df_unseen, df_samples
+
+    df_boundary = df_unseen.sort_values(by=['dist'], ascending=False)[:num_samples]
+    df_unseen.drop(df_boundary.index.values, inplace=True)
+    df_unseen.reset_index(drop=True, inplace=True)
+    df_boundary.reset_index(drop=True, inplace=True)
+    return df_unseen, df_samples, df_boundary
 
 
 SavedAction = namedtuple('SavedAction', ['log_prob', 'value'])
@@ -62,8 +67,8 @@ class RAD(object):
         self.lamb = options['lambda']
         self.ad_alpha = options['r_ad_alpha']
         self.cl_alpha = options['r_cl_alpha']
+        self.r_boundary = options['r_boundary']
         self.num_samples = options['num_samples']
-        self.validation_size = options['validation_size']
 
         self.saved_actions = []
         self.rewards = []
@@ -145,13 +150,20 @@ class RAD(object):
                 return df_seen, df_unseen_pseudo
 
             for _ in tqdm(range(self.max_episode), desc="iterator {:d} train".format(i_iterator + 1)):
-                df_unseen, df_samples = generate_samples(df_unseen_pseudo, self.options['num_samples'])
+                df_unseen, df_samples, df_boundary = generate_samples(df_unseen_pseudo, self.options['num_samples'])
                 df_samples_emb = prototrainer.in_embedding(df_samples, i_iterator)
-                actions = self.select_action(df_samples_emb.values)
-                df_seen_episode, df_unseen_episode = selected_combination(df_seen, df_unseen, df_samples, actions)
+                df_boundary_emb = prototrainer.in_embedding(df_boundary, i_iterator)
+                df_all_emb = pd.concat([df_samples_emb, df_boundary_emb])
+                actions = self.select_action(df_all_emb.values)
+                df_seen_episode, df_unseen_episode = selected_combination(df_seen, df_unseen, df_samples, actions[:len(df_samples_emb)])
                 seen_f1_ad, seen_f1 = prototrainer.training_after(df_seen_episode, df_seen_eval)
-                r_episode = seen_f1_ad*self.ad_alpha + seen_f1*self.cl_alpha
-                loss = self.finish_episode(abs(r_episode - r_before))
+
+                df_seen_episode, df_unseen_episode = selected_combination(df_seen_episode, df_unseen_episode, df_boundary, actions[len(df_samples_emb):])
+                seen_f1_ad_boundary, seen_f1_boundary = prototrainer.training_after(df_seen_episode, df_seen_eval)
+
+                r_episode = ((1-self.r_boundary) * (seen_f1_ad*self.ad_alpha + seen_f1*self.cl_alpha)) + \
+                            (self.r_boundary * (seen_f1_ad_boundary*self.ad_alpha + seen_f1_boundary*self.cl_alpha))
+                loss = self.finish_episode(norm(r_episode - r_before))
                 loss_lst.append(loss)
                 if r_episode > max_reward:
                     prototrainer.save_best_model()

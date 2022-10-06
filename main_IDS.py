@@ -21,6 +21,7 @@ def arg_parser():
     parser.add_argument('--dataset', help='name of dataset', default='IDS2018_small')
     parser.add_argument('--r_ad_alpha', help='hyper-parameter for the reward of anomaly detection', default=1)
     parser.add_argument('--r_cl_alpha', help='hyper-parameter for the reward of anomaly classification', default=1)
+    parser.add_argument('--r_boundary', help='hyper-parameter for the reward of boundary sample selection', default=0.1)
 
     # set unseen validation set parameters
     parser.add_argument('--validation_size', help='set validation size for each class', default=10)
