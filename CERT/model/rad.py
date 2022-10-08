@@ -15,16 +15,29 @@ def generate_samples(df_unseen_pseudo, num_samples=100):
     n_clusters = set(df_unseen['y_pred'].values)
     for ind, val in enumerate(n_clusters):
         if ind == 0:
-            if len(df_unseen.loc[df_unseen['y_pred'] == val]) >= num_samples:
-                df_samples = df_unseen.loc[df_unseen['y_pred'] == val].sort_values(by=['dist'], ascending=True)[:num_samples]
+            if val == 0:
+                if len(df_unseen.loc[df_unseen['y_pred'] == val]) >= num_samples*5:
+                    df_samples = df_unseen.loc[df_unseen['y_pred'] == val].sort_values(by=['dist'], ascending=True)[:num_samples*5]
+                else:
+                    df_samples = df_unseen.loc[df_unseen['y_pred'] == val]
             else:
-                df_samples = df_unseen.loc[df_unseen['y_pred'] == val]
+                if len(df_unseen.loc[df_unseen['y_pred'] == val]) >= num_samples:
+                    df_samples = df_unseen.loc[df_unseen['y_pred'] == val].sort_values(by=['dist'], ascending=True)[:num_samples]
+                else:
+                    df_samples = df_unseen.loc[df_unseen['y_pred'] == val]
         else:
-            if len(df_unseen.loc[df_unseen['y_pred'] == val]) >= num_samples:
-                df_samples = pd.concat(
-                    [df_samples, df_unseen.loc[df_unseen['y_pred'] == val].sort_values(by=['dist'], ascending=True)[:num_samples]])
+            if val == 0:
+                if len(df_unseen.loc[df_unseen['y_pred'] == val]) >= num_samples*5:
+                    df_samples = pd.concat(
+                        [df_samples, df_unseen.loc[df_unseen['y_pred'] == val].sort_values(by=['dist'], ascending=True)[:num_samples*5]])
+                else:
+                    df_samples = pd.concat([df_samples, df_unseen.loc[df_unseen['y_pred'] == val]])
             else:
-                df_samples = pd.concat([df_samples, df_unseen.loc[df_unseen['y_pred'] == val]])
+                if len(df_unseen.loc[df_unseen['y_pred'] == val]) >= num_samples:
+                    df_samples = pd.concat(
+                        [df_samples, df_unseen.loc[df_unseen['y_pred'] == val].sort_values(by=['dist'], ascending=True)[:num_samples]])
+                else:
+                    df_samples = pd.concat([df_samples, df_unseen.loc[df_unseen['y_pred'] == val]])
     df_unseen.drop(df_samples.index.values, inplace=True)
     df_unseen.reset_index(drop=True, inplace=True)
     df_samples.reset_index(drop=True, inplace=True)

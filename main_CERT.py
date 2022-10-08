@@ -13,7 +13,7 @@ def arg_parser():
     :return:
     """
     parser = ArgumentParser()
-    parser.add_argument('--random_seed', help='random seed', default=9)
+    parser.add_argument('--random_seed', help='random seed', default=0)
     parser.add_argument('--dataset_dir', help='please choose dataset directory', default='./CERT/Datasets/CERT52_small.csv')
     parser.add_argument('--out_dim', help='output dimensions', default=64)
     parser.add_argument('--lr', help='learning rate', default=0.001)
@@ -39,7 +39,7 @@ def arg_parser():
     parser.add_argument('--epoch_size', help='epoch size for each epoch of protonet', default=1000)
 
     # set RAD parameters
-    parser.add_argument('--max_episode', help='max episode for each iterators', default=50)
+    parser.add_argument('--max_episode', help='max episode for each iterators', default=10)
     parser.add_argument('--max_iterators', help='max iterators for training RAD model', default=5)
     parser.add_argument('--lambda', help='hyper-parameter to balance two rewards', default=1)
     parser.add_argument('--num_samples', help='number of samples generated each episode', default=2)
@@ -52,22 +52,24 @@ def main():
     parser = arg_parser()
     args = parser.parse_args()
     options = vars(args)
+    for i in range(10):
+        print('='*20)
+        print(f'Random seed {i}')
+        options['random_seed'] = i
+        utils.set_seed(options['random_seed'])
 
-    utils.set_seed(options['random_seed'])
+        # splitting dataset
+        seen_x, seen_y, sup_x, sup_y, unseen_x, unseen_y, test_x, test_y, input_dim = utils.preprocessing_CERT_EMB(options)
+        print('Finish preprocessing')
+        options['input_dim'] = input_dim
 
-    # splitting dataset
-    seen_x, seen_y, sup_x, sup_y, unseen_x, unseen_y, test_x, test_y, input_dim = utils.preprocessing_CERT_EMB(options)
-    print('Finish preprocessing')
-    options['input_dim'] = input_dim
+        df_seen = utils.data2df(seen_x, seen_y)
+        df_sup = utils.data2df(sup_x, sup_y)
+        df_unseen = utils.data2df(unseen_x, unseen_y)
 
-    df_seen = utils.data2df(seen_x, seen_y)
-    df_sup = utils.data2df(sup_x, sup_y)
-    df_unseen = utils.data2df(unseen_x, unseen_y)
-
-    model_rad = rad.RAD(options)
-    print('Initial reinforcement learning model')
-    model_rad.train_rad(df_seen, df_unseen, df_sup, test_x, test_y)
-    print(options['random_seed'])
+        model_rad = rad.RAD(options)
+        print('Initial reinforcement learning model')
+        model_rad.train_rad(df_seen, df_unseen, df_sup, test_x, test_y)
     print('done')
 
 
