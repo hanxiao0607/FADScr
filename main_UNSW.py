@@ -34,13 +34,13 @@ def arg_parser():
     parser.add_argument('--n_support', help='n support', default=3)
     parser.add_argument('--n_query', help='n query', default=3)
     parser.add_argument('--max_epoch', help='max epoch for prototypical networks', default=10)
-    parser.add_argument('--epoch_size', help='epoch size for each epoch of protonet', default=100)
+    parser.add_argument('--epoch_size', help='epoch size for each epoch of protonet', default=20)
 
     # set RAD parameters
     parser.add_argument('--max_episode', help='max episode for each iterators', default=10)
     parser.add_argument('--max_iterators', help='max iterators for training RAD model', default=10)
     parser.add_argument('--lambda', help='hyper-parameter to balance two rewards', default=1)
-    parser.add_argument('--num_samples', help='number of samples generated each episode', default=100)
+    parser.add_argument('--num_samples', help='number of samples generated each episode', default=5)
     parser.add_argument('--n_min_size', help='minimum number of final training size', default=10)
     parser.add_argument('--ratio_ab', help='ratio of abnormal', default=0.1)
 
