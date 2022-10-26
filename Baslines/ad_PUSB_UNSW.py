@@ -6,7 +6,7 @@ from models.train_pu import train_model
 
 
 def main():
-    iters = 10  # Run multiple experiments to get average results
+    iters = 20  # Run multiple experiments to get average results
     pdata = 1000
     epochs = 200
     batch_size = 1024

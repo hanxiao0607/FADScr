@@ -8,11 +8,38 @@ from collections import namedtuple
 from tqdm import tqdm
 import math
 from numpy.linalg import norm
+from copy import copy
 
 
 def generate_samples(df_unseen_pseudo, num_samples=100):
     df_unseen = df_unseen_pseudo.copy()
     n_clusters = set(df_unseen['y_pred'].values)
+    for ind, val in enumerate(n_clusters):
+        if ind == 0:
+            if val == 0:
+                if len(df_unseen.loc[df_unseen['y_pred'] == val]) >= num_samples*5:
+                    df_samples = df_unseen.loc[df_unseen['y_pred'] == val].sample(num_samples*5, random_state=42)
+                else:
+                    df_samples = df_unseen.loc[df_unseen['y_pred'] == val]
+            else:
+                if len(df_unseen.loc[df_unseen['y_pred'] == val]) >= num_samples:
+                    df_samples = df_unseen.loc[df_unseen['y_pred'] == val].sample(num_samples, random_state=42)
+                else:
+                    df_samples = df_unseen.loc[df_unseen['y_pred'] == val]
+        else:
+            if val == 0:
+                if len(df_unseen.loc[df_unseen['y_pred'] == val]) >= num_samples*5:
+                    df_samples = pd.concat(
+                        [df_samples, df_unseen.loc[df_unseen['y_pred'] == val].sample(num_samples*5, random_state=42)])
+                else:
+                    df_samples = pd.concat([df_samples, df_unseen.loc[df_unseen['y_pred'] == val]])
+            else:
+                if len(df_unseen.loc[df_unseen['y_pred'] == val]) >= num_samples:
+                    df_samples = pd.concat(
+                        [df_samples, df_unseen.loc[df_unseen['y_pred'] == val].sample(num_samples, random_state=42)])
+                else:
+                    df_samples = pd.concat([df_samples, df_unseen.loc[df_unseen['y_pred'] == val]])
+    df_random = df_samples.copy()
     for ind, val in enumerate(n_clusters):
         if ind == 0:
             if val == 0:
@@ -38,31 +65,30 @@ def generate_samples(df_unseen_pseudo, num_samples=100):
                         [df_samples, df_unseen.loc[df_unseen['y_pred'] == val].sort_values(by=['dist'], ascending=True)[:num_samples]])
                 else:
                     df_samples = pd.concat([df_samples, df_unseen.loc[df_unseen['y_pred'] == val]])
+
+    df_samples = pd.concat([df_samples, df_random])
+    df_samples.drop_duplicates(inplace=True)
+
     df_unseen.drop(df_samples.index.values, inplace=True)
     df_unseen.reset_index(drop=True, inplace=True)
     df_samples.reset_index(drop=True, inplace=True)
 
-    df_boundary = df_unseen.sort_values(by=['dist'], ascending=False)[:num_samples]
-    df_unseen.drop(df_boundary.index.values, inplace=True)
-    df_unseen.reset_index(drop=True, inplace=True)
-    df_boundary.reset_index(drop=True, inplace=True)
-    return df_unseen, df_samples, df_boundary
+    return df_unseen, df_samples
 
 
 SavedAction = namedtuple('SavedAction', ['log_prob', 'value'])
 
 
-def selected_combination(df_seen, df_unseen, df_samples, actions):
+def selected_combination(df_unseen, df_samples, actions):
     df_samples['action'] = actions
-    df_samples1 = df_samples.loc[df_samples['action'] == 1].copy()
-    df_samples1.drop(columns=['action'], inplace=True)
-    df_samples1.reset_index(drop=True, inplace=True)
-    df_seen = pd.concat([df_seen, df_samples1]).reset_index(drop=True)
+    df_selected = df_samples.loc[df_samples['action'] == 1].copy()
+    df_selected.drop(columns=['action'], inplace=True)
+    df_selected.reset_index(drop=True, inplace=True)
     df_samples0 = df_samples.loc[df_samples['action'] == 0].copy()
     df_samples0.drop(columns=['action'], inplace=True)
     df_samples0.reset_index(drop=True, inplace=True)
     df_unseen = pd.concat([df_unseen, df_samples0]).reset_index(drop=True)
-    return df_seen, df_unseen
+    return df_selected, df_unseen
 
 
 class RAD(object):
@@ -74,13 +100,13 @@ class RAD(object):
         self.eps = np.finfo(np.float32).eps.item()
         self.r_prev = None
         self.r_new = None
+        self.r_hard = options['r_hard']
         self.max_episode = options['max_episode']
         self.max_iterators = options['max_iterators']
         self.options = options
         self.lamb = options['lambda']
         self.ad_alpha = options['r_ad_alpha']
         self.cl_alpha = options['r_cl_alpha']
-        self.r_boundary = options['r_boundary']
         self.num_samples = options['num_samples']
 
         self.saved_actions = []
@@ -140,54 +166,53 @@ class RAD(object):
         prototrainer = protonet.ProtoTrainer(self.options)
         for i_iterator in range(self.max_iterators):
             if i_iterator == 0:
-                df_seen, df_seen_eval, df_unseen_pseudo, seen_f1_ad, seen_f1 = prototrainer.training_first(df_seen, df_unseen, df_sup, test_x, test_y)
+                df_seen, df_seen_eval, df_unseen_pseudo, seen_f1_ad, seen_f1, hard_sample, seen_prob = prototrainer.training_first(df_seen, df_unseen, df_sup, test_x, test_y)
                 prototrainer.training_baseline(df_seen, df_seen_eval, df_unseen, test_x, test_y)
+                df_selected = pd.DataFrame()
             else:
-                n_min = max(0, math.floor(min(df_seen.loc[df_seen['y_pred'] > 0].groupby('y_pred').count()['y_true'])*0.6)//2)
-                if n_min >= self.options['n_support']:
-                    self.options['n_support'] = n_min
-                    self.options['n_query'] = n_min
-                    print(self.options['n_support'], self.options['n_query'])
-                    prototrainer.n_query = self.options['n_query']
-                    prototrainer.n_support = self.options['n_support']
-                df_seen, df_seen_eval, df_unseen_pseudo, seen_f1_ad, seen_f1 = prototrainer.training_before(df_seen, df_unseen)
-            r_before = seen_f1_ad*self.ad_alpha + seen_f1*self.cl_alpha
-            max_reward = r_before
-            max_seen = df_seen.copy()
+                df_seen, df_seen_eval, df_unseen_pseudo, df_selected, seen_f1_ad, seen_f1, hard_sample, seen_prob = \
+                    prototrainer.training_before(df_seen, df_seen_eval, df_unseen, df_selected, max_reward, i_iterator)
+            r_before = seen_f1_ad*self.ad_alpha + seen_f1*self.cl_alpha + self.r_hard*seen_prob
+            max_reward = copy(r_before)
+            max_selected = df_selected.copy()
             max_unseen = df_unseen_pseudo.copy()
             loss_lst = []
+            r_episode_max = 0
             for _ in tqdm(range(self.max_episode), desc="iterator {:d} train".format(i_iterator + 1)):
-                df_unseen, df_samples, df_boundary = generate_samples(df_unseen_pseudo, self.options['num_samples'])
+                df_unseen, df_samples = generate_samples(df_unseen_pseudo, self.options['num_samples'])
                 df_samples_emb = prototrainer.in_embedding(df_samples, i_iterator)
-                df_boundary_emb = prototrainer.in_embedding(df_boundary, i_iterator)
-                df_all_emb = pd.concat([df_samples_emb, df_boundary_emb])
-                actions = self.select_action(df_all_emb.values)
-                df_seen_episode, df_unseen_episode = selected_combination(df_seen, df_unseen, df_samples, actions[:len(df_samples_emb)])
-                seen_f1_ad, seen_f1 = prototrainer.training_after(df_seen_episode, df_seen_eval)
-
-                df_seen_episode, df_unseen_episode = selected_combination(df_seen_episode, df_unseen_episode, df_boundary, actions[len(df_samples_emb):])
-                seen_f1_ad_boundary, seen_f1_boundary = prototrainer.training_after(df_seen_episode, df_seen_eval)
-
-                r_episode = ((1-self.r_boundary) * (seen_f1_ad*self.ad_alpha + seen_f1*self.cl_alpha)) + \
-                            (self.r_boundary * (seen_f1_ad_boundary*self.ad_alpha + seen_f1_boundary*self.cl_alpha))
+                actions = self.select_action(df_samples_emb.values)
+                df_selected_episode, df_unseen_episode = selected_combination(df_unseen, df_samples, actions)
+                seen_f1_ad, seen_f1, seen_prob = prototrainer.training_after(df_seen, df_selected, df_selected_episode, df_seen_eval, hard_sample)
+                r_episode = seen_f1_ad*self.ad_alpha + seen_f1*self.cl_alpha + self.r_hard*seen_prob
                 loss = self.finish_episode(norm(r_episode - r_before))
                 loss_lst.append(loss)
-                if r_episode > max_reward:
+                if r_episode >= r_episode_max:
                     prototrainer.save_best_model()
-                    max_seen = df_seen_episode.copy()
+                    max_selected = df_selected_episode.copy()
                     max_unseen = df_unseen_episode.copy()
-                    max_reward = r_episode
-                # self.finish_iterator(loss_lst)
+                    r_episode_max = copy(r_episode)
+                    max_seen_prob = copy(seen_prob)
             self.finish_iterator(loss_lst)
-            print(f'prev reward {r_before} best reward {max_reward}')
-            if max_reward > r_before:
-                prototrainer.update_best_model()
-                df_seen = max_seen.copy()
-                df_unseen = max_unseen.copy()
-            df_seen = pd.concat([df_seen, df_seen_eval])
-            df_seen.reset_index(drop=True, inplace=True)
-            if (test_x is not None) and (min(df_seen.groupby(['y_pred']).count()['y_true'].values) >= self.options['n_min_size']) and (len(df_seen.groupby(['y_pred']).count()) == self.options['n_ways']):
-                prototrainer.final_training_testing(df_seen, test_x, test_y)
-        prototrainer.final_training_testing(df_seen, test_x, test_y)
+            print(f'prev reward {r_before}, best reward {r_episode_max}, seenprob {max_seen_prob}')
+            if r_episode_max >= r_before:
+                if i_iterator > 9:
+                    prototrainer.update_best_model()
+                    df_selected = pd.concat([df_selected, max_selected.copy()], axis=0)
+                    df_unseen = copy(max_unseen)
+                else:
+                    prototrainer.update_best_model()
+                    df_unseen = pd.concat([max_unseen, max_selected], axis=0)
+                    df_unseen.reset_index(drop=True, inplace=True)
+            if ((test_x is not None) and (len(df_selected) > 0) and \
+                    (min(df_selected.groupby(['y_pred']).count()['y_true'].values) >= self.options['n_min_size']) and \
+                    (len(df_selected.groupby(['y_pred']).count()) == self.options['n_ways'])) or \
+                    (r_episode_max == (self.options['r_ad_alpha']+self.options['r_cl_alpha']+self.r_hard)):
+                df_seen = pd.concat([df_seen, df_seen_eval])
+                df_seen.reset_index(drop=True, inplace=True)
+                prototrainer.final_training_testing(df_seen, df_selected, test_x, test_y)
+        df_seen = pd.concat([df_seen, df_seen_eval])
+        df_seen.reset_index(drop=True, inplace=True)
+        prototrainer.final_training_testing(df_seen, df_selected, test_x, test_y, final=1)
         df_unseen_pseudo = df_unseen
         return df_seen, df_unseen_pseudo

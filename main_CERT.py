@@ -20,9 +20,8 @@ def arg_parser():
     parser.add_argument('--device', help='device cpu or cuda', default='cuda:0')
     parser.add_argument('--dataset', help='name of dataset', default='CERT')
     parser.add_argument('--r_ad_alpha', help='hyper-parameter for the reward of anomaly detection', default=1)
-    parser.add_argument('--r_cl_alpha', help='hyper-parameter for the reward of anomaly classification', default=1)
-    parser.add_argument('--r_boundary', help='hyper-parameter for the reward of boundary sample selection', default=0.1)
-
+    parser.add_argument('--r_cl_alpha', help='hyper-parameter for the reward of anomaly classification', default=10)
+    parser.add_argument('--r_hard', help='hyper-parameter for the reward of hard samples', default=0.01)
 
     # set unseen validation set parameters
     parser.add_argument('--validation_size', help='set validation size for each class', default=10)
@@ -35,26 +34,27 @@ def arg_parser():
     parser.add_argument('--n_ways', help='n ways', default=5)
     parser.add_argument('--n_support', help='n support', default=3)
     parser.add_argument('--n_query', help='n query', default=3)
+    parser.add_argument('--n_valid', help='n valid', default=4)
     parser.add_argument('--max_epoch', help='max epoch for prototypical networks', default=10)
     parser.add_argument('--epoch_size', help='epoch size for each epoch of protonet', default=1000)
 
     # set RAD parameters
-    parser.add_argument('--max_episode', help='max episode for each iterators', default=10)
+    parser.add_argument('--max_episode', help='max episode for each iterators', default=100)
     parser.add_argument('--max_iterators', help='max iterators for training RAD model', default=5)
     parser.add_argument('--lambda', help='hyper-parameter to balance two rewards', default=1)
-    parser.add_argument('--num_samples', help='number of samples generated each episode', default=2)
+    parser.add_argument('--num_samples', help='number of samples generated each episode', default=1)
     parser.add_argument('--n_min_size', help='minimum number of final training size', default=10)
 
     return parser
 
 
 def main():
-    parser = arg_parser()
-    args = parser.parse_args()
-    options = vars(args)
-    for i in range(10):
+    for i in range(10,20):
         print('='*20)
-        print(f'Random seed {i}')
+        print(f'Results for the random seed: {i}')
+        parser = arg_parser()
+        args = parser.parse_args()
+        options = vars(args)
         options['random_seed'] = i
         utils.set_seed(options['random_seed'])
 
@@ -70,6 +70,7 @@ def main():
         model_rad = rad.RAD(options)
         print('Initial reinforcement learning model')
         model_rad.train_rad(df_seen, df_unseen, df_sup, test_x, test_y)
+
     print('done')
 
 

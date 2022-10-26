@@ -20,7 +20,7 @@ class classification_lstm(nn.Module):
         return prediction
 
 def main():
-    iters = 10  # Run multiple experiments to get average results
+    iters = 20  # Run multiple experiments to get average results
     pdata = 1000
     epochs = 20
     batch_size = 1024

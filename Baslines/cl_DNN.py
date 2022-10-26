@@ -5,7 +5,7 @@ warnings.filterwarnings('ignore')
 
 def main():
     dir_UNSW = '../UNSW/Datasets/NUSW_small.csv'
-    lst = list(range(10))
+    lst = list(range(20))
     print('UNSW')
     for i in lst:
         seen_x, seen_y, test_x, test_y = utils.preprocessing_UNSW(dir_UNSW, n_sup=10, seed=i, adc=1, unsupervised=0, oversampling=1)
@@ -24,7 +24,7 @@ def main():
         y_pred = mlp.predict(test_x, test_y)
         print('Anomaly Detection report:')
         print(classification_report(y_true=test_y, y_pred=y_pred, digits=5))
-    dir_CERT = '../CERT_EMB/Datasets/final_data.csv'
+    dir_CERT = '../CERT/Datasets/CERT52_small.csv'
     print('-'*20)
     print('CERT')
     for i in lst:

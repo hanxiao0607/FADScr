@@ -100,8 +100,8 @@ def preprocessing_CERT_EMB(options, n_class=4):
     if n_class == 4:
         sup_x = key2num(pd.concat([df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup], df4.iloc[:n_sup]], axis=0, ignore_index=True).iloc[:, :-1].values, dic)
         sup_y = pd.concat([df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup], df4.iloc[:n_sup]], axis=0, ignore_index=True).iloc[:, -1].values
-        unseen_x = key2num(pd.concat([df0.iloc[20000:40000], df1.iloc[n_sup:28+n_sup], df2.iloc[n_sup:201+n_sup], df3.iloc[n_sup:10+n_sup], df4.iloc[n_sup:21+n_sup]], axis=0, ignore_index=True).iloc[:, :-1].values, dic)
-        unseen_y = pd.concat([df0.iloc[20000:40000], df1.iloc[n_sup:28+n_sup], df2.iloc[n_sup:201+n_sup], df3.iloc[n_sup:10+n_sup], df4.iloc[n_sup:21+n_sup]], axis=0, ignore_index=True).iloc[:, -1].values
+        unseen_x = key2num(pd.concat([df0.iloc[20000:22000], df1.iloc[n_sup:28+n_sup], df2.iloc[n_sup:201+n_sup], df3.iloc[n_sup:10+n_sup], df4.iloc[n_sup:21+n_sup]], axis=0, ignore_index=True).iloc[:, :-1].values, dic)
+        unseen_y = pd.concat([df0.iloc[20000:22000], df1.iloc[n_sup:28+n_sup], df2.iloc[n_sup:201+n_sup], df3.iloc[n_sup:10+n_sup], df4.iloc[n_sup:21+n_sup]], axis=0, ignore_index=True).iloc[:, -1].values
         test_x = key2num(pd.concat([df0.iloc[-2000:], df1.iloc[-27:], df2.iloc[-201:], df3.iloc[-10:], df4.iloc[-21:]], axis=0, ignore_index=True).iloc[:, :-1].values, dic)
         test_y = pd.concat([df0.iloc[-2000:], df1.iloc[-27:], df2.iloc[-201:], df3.iloc[-10:], df4.iloc[-21:]], axis=0, ignore_index=True).iloc[:, -1].values
     elif n_class == 3:
@@ -110,9 +110,9 @@ def preprocessing_CERT_EMB(options, n_class=4):
         sup_y = pd.concat([df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup]], axis=0,
                           ignore_index=True).iloc[:, -1].values
         unseen_x = key2num(pd.concat(
-            [df0.iloc[20000:40000], df1.iloc[n_sup:28 + n_sup], df2.iloc[n_sup:201 + n_sup], df3.iloc[n_sup:10 + n_sup]], axis=0, ignore_index=True).iloc[:, :-1].values, dic)
+            [df0.iloc[20000:22000], df1.iloc[n_sup:28 + n_sup], df2.iloc[n_sup:201 + n_sup], df3.iloc[n_sup:10 + n_sup]], axis=0, ignore_index=True).iloc[:, :-1].values, dic)
         unseen_y = pd.concat(
-            [df0.iloc[20000:40000], df1.iloc[n_sup:28 + n_sup], df2.iloc[n_sup:201 + n_sup], df3.iloc[n_sup:10 + n_sup]], axis=0, ignore_index=True).iloc[:, -1].values
+            [df0.iloc[20000:22000], df1.iloc[n_sup:28 + n_sup], df2.iloc[n_sup:201 + n_sup], df3.iloc[n_sup:10 + n_sup]], axis=0, ignore_index=True).iloc[:, -1].values
         test_x = key2num(
             pd.concat([df0.iloc[-2000:], df1.iloc[-27:], df2.iloc[-201:], df3.iloc[-10:]], axis=0,
                       ignore_index=True).iloc[:, :-1].values, dic)
@@ -124,9 +124,9 @@ def preprocessing_CERT_EMB(options, n_class=4):
         sup_y = pd.concat([df1.iloc[:n_sup], df2.iloc[:n_sup]], axis=0,
                           ignore_index=True).iloc[:, -1].values
         unseen_x = key2num(pd.concat(
-            [df0.iloc[20000:40000], df1.iloc[n_sup:28 + n_sup], df2.iloc[n_sup:201 + n_sup]], axis=0, ignore_index=True).iloc[:, :-1].values, dic)
+            [df0.iloc[20000:22000], df1.iloc[n_sup:28 + n_sup], df2.iloc[n_sup:201 + n_sup]], axis=0, ignore_index=True).iloc[:, :-1].values, dic)
         unseen_y = pd.concat(
-            [df0.iloc[20000:40000], df1.iloc[n_sup:28 + n_sup], df2.iloc[n_sup:201 + n_sup]], axis=0, ignore_index=True).iloc[:, -1].values
+            [df0.iloc[20000:22000], df1.iloc[n_sup:28 + n_sup], df2.iloc[n_sup:201 + n_sup]], axis=0, ignore_index=True).iloc[:, -1].values
         test_x = key2num(
             pd.concat([df0.iloc[-2000:], df1.iloc[-27:], df2.iloc[-201:]], axis=0,
                       ignore_index=True).iloc[:, :-1].values, dic)
@@ -136,9 +136,9 @@ def preprocessing_CERT_EMB(options, n_class=4):
         sup_x = key2num(df1.iloc[:n_sup].iloc[:, :-1].values, dic)
         sup_y = df1.iloc[:n_sup].iloc[:, -1].values
         unseen_x = key2num(pd.concat(
-            [df0.iloc[20000:4000], df1.iloc[n_sup:28 + n_sup]], axis=0, ignore_index=True).iloc[:, :-1].values, dic)
+            [df0.iloc[20000:22000], df1.iloc[n_sup:28 + n_sup]], axis=0, ignore_index=True).iloc[:, :-1].values, dic)
         unseen_y = pd.concat(
-            [df0.iloc[20000:40000], df1.iloc[n_sup:28 + n_sup]], axis=0, ignore_index=True).iloc[:, -1].values
+            [df0.iloc[20000:22000], df1.iloc[n_sup:28 + n_sup]], axis=0, ignore_index=True).iloc[:, -1].values
         test_x = key2num(
             pd.concat([df0.iloc[-2000:], df1.iloc[-27:]], axis=0,
                       ignore_index=True).iloc[:, :-1].values, dic)

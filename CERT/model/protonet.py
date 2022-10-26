@@ -13,6 +13,7 @@ from torch.autograd import Variable
 from torch.utils.data import DataLoader, Dataset
 from CERT.utils import utils
 import os
+from copy import copy
 
 from sklearn.metrics import classification_report, f1_score, roc_auc_score, average_precision_score
 
@@ -34,30 +35,30 @@ class classification_lstm(nn.Module):
         self.h0 = options['hid_dim0']
         self.h1 = options['hid_dim1']
         self.embedding = nn.Embedding(self.input_dim, self.emb_dim, padding_idx=0)
+        self.embeddingbag = nn.EmbeddingBag(self.input_dim, self.emb_dim, padding_idx=0, mode='mean')
         self.rnn = nn.LSTM(self.emb_dim, self.out_dim, 1, bidirectional=False, batch_first=True)
         self.dropout = nn.Dropout(0.3)
-        # self.encoder = nn.Sequential(
-        #     nn.Linear(128, self.h0),
-        #     nn.ReLU(),
-        #     nn.Dropout(0.3),
-        #     nn.Linear(self.h0, self.h1),
-        #     nn.ReLU(),
-        #     nn.Dropout(0.3),
-        #     nn.Linear(self.h1, self.out_dim)
-        # )
+        self.fc = nn.Linear(self.emb_dim, self.out_dim)
+        # self.fc = nn.Sequential(
+        #         nn.Linear(self.emb_dim, self.h0),
+        #         nn.ReLU(),
+        #         nn.Dropout(0.3),
+        #         nn.Linear(self.h0, self.h1),
+        #         nn.ReLU(),
+        #         nn.Dropout(0.3),
+        #         nn.Linear(self.h1, self.out_dim)
+        #     ).to(options['device'])
 
     def forward(self, input, lens):
         embedded = self.dropout(self.embedding(input))
         output, _ = self.rnn(embedded)
-        # mean_embedded = torch.stack([torch.mean(torch.reshape(embedded[i], (-1, self.emb_dim))[:lens[i]], dim=0) for i in range(len(embedded))])
-        prediction = [torch.mean(output[i, :lens[i], :], dim=0) for i in range(len(lens))]
-        prediction = torch.stack(prediction)
-        # prediction = self.encoder(prediction)
-        # prediction = self.fc_2(prediction)
-        # prediction = self.fc_out(prediction)
-        # torch.mean(z[i, :x_lens[i], :], dim=0)
-        # prediction = self.fc_out(mean_embedded)
-        return prediction
+        output = torch.sum(output, dim=1)
+        output = output/lens
+        return output
+
+    # def forward(self, input, lens):
+    #     emb = self.embeddingbag(input)
+    #     return self.fc(emb)
 
 def load_protonet_lstm(options):
     """
@@ -170,7 +171,7 @@ def list_to_tensor(lst):
         if len(lst[i]) < max_len:
             lst[i].extend([0 for _ in range(max_len - len(lst[i]))])
     lst = torch.stack([torch.tensor(i) for i in lst])
-    return lst, x_lens
+    return lst, torch.tensor(x_lens).reshape(-1, 1)
 
 
 class ProtoNet(nn.Module):
@@ -197,7 +198,7 @@ class ProtoNet(nn.Module):
             self.encoder = torch.load('./CERT/saved_models/' + path)
             self.encoder.to(self.device)
 
-    def set_forward_loss(self, sample):
+    def set_forward_loss(self, sample, retrain=0):
         """
         Computes loss, accuracy and output for classification task
         Args:
@@ -230,6 +231,16 @@ class ProtoNet(nn.Module):
                 x[i].extend([0 for _ in range(max_len-len(x[i]))])
 
         x = torch.reshape(torch.tensor(np.concatenate(x)), (len(x_lens), max_len)).to(self.device)
+        x_lens = torch.tensor(x_lens).reshape(-1, 1).to(self.device)
+
+        if retrain:
+            self.encoder.eval()
+            with torch.no_grad():
+                z = self.encoder.forward(x, x_lens)
+                z_dim = z.size(-1)
+                z_proto_before = z[:n_way * n_support].view(n_way, n_support, z_dim).mean(1)
+            self.encoder.train()
+
         z = self.encoder.forward(x, x_lens)
         z_dim = z.size(-1)
         z_proto = z[:n_way * n_support].view(n_way, n_support, z_dim).mean(1)
@@ -241,7 +252,10 @@ class ProtoNet(nn.Module):
         # compute probabilities
         log_p_y = F.log_softmax(-dists, dim=1).view(n_way, n_query, -1)
 
-        loss_val = -log_p_y.gather(2, target_inds).squeeze().view(-1).mean()
+        if retrain:
+            loss_val = -log_p_y.gather(2, target_inds).squeeze().view(-1).mean() + 0.01*torch.sum(euclidean_dist(z_proto, z_proto_before))
+        else:
+            loss_val = -log_p_y.gather(2, target_inds).squeeze().view(-1).mean()
         _, y_hat = log_p_y.max(2)
         acc_val = torch.eq(y_hat, target_inds.squeeze()).float().mean()
 
@@ -254,7 +268,7 @@ class ProtoNet(nn.Module):
             'protoes': z_proto
         }
 
-    def train(self, optimizer, train_x, train_y, n_way, n_support, n_query, max_epoch, epoch_size, path='PN.pth'):
+    def train(self, optimizer, train_x, train_y, n_way, n_support, n_query, max_epoch, epoch_size, path='PN.pth', retrain=0):
         """
         Trains the protonet
         Args:
@@ -283,7 +297,7 @@ class ProtoNet(nn.Module):
             for episode in range(epoch_size):
                 sample = extract_sample(n_way, n_support, n_query, train_x, train_y)
                 optimizer.zero_grad()
-                loss, output = self.set_forward_loss(sample)
+                loss, output = self.set_forward_loss(sample, retrain)
                 running_loss += output['loss']
                 running_acc += output['acc']
                 loss.backward()
@@ -292,13 +306,13 @@ class ProtoNet(nn.Module):
             epoch_loss = running_loss / epoch_size
             epoch_acc = running_acc / epoch_size
             if min_loss >= epoch_loss:
-                min_loss = epoch_loss
+                min_loss = copy(epoch_loss)
                 torch.save(self.encoder, './CERT/saved_models/' + path)
             # print('Epoch {:d} -- Loss: {:.4f} Acc: {:.4f}'.format(epoch + 1, epoch_loss, epoch_acc))
             epoch += 1
             scheduler.step()
 
-    def test(self, train_iter, test_iter, path='PN.pth'):
+    def test(self, train_iter, test_iter, path='PN.pth', validation=0):
         self.encoder = torch.load('./CERT/saved_models/' + path)
         self.encoder.to(self.device)
         self.encoder.eval()
@@ -307,7 +321,7 @@ class ProtoNet(nn.Module):
         # print('Compute the centers with training dataset')
         for batch in train_iter:
             x = batch[0].to(self.device)
-            x_lens = batch[1]
+            x_lens = batch[1].to(self.device)
             labels = batch[2]
             z = self.encoder.forward(x, x_lens)
             embs.extend(z.detach().cpu().numpy())
@@ -327,16 +341,22 @@ class ProtoNet(nn.Module):
         # print('Make prediction with centers')
         for batch in test_iter:
             x = batch[0].to(self.device)
-            x_lens = batch[1]
+            x_lens = batch[1].to(self.device)
             y_true.extend(list(batch[2]))
             z = self.encoder.forward(x, x_lens)
             dists = euclidean_dist(z, protoes)
             y_dist.extend(list(torch.min(dists, dim=1)[0].detach().cpu().numpy()))
+            if validation == 0:
+                y_val, _ = F.softmax(-dists, dim=1).max(1)
+                y_val = y_val.detach().cpu().numpy()
+            else:
+                y_val = F.softmax(-dists, dim=1).detach().cpu().numpy()[list(range(len(batch[2]))), list(batch[2])].reshape(-1)
+                assert len(y_val) == len(batch[1]), 'Length for y_val is different than org'
             log_p_y = F.log_softmax(-dists, dim=1)
-            y_val, y_hat = log_p_y.max(1)
+            _, y_hat = log_p_y.max(1)
             y_all.extend(list(F.softmax(-dists, dim=1).detach().cpu().numpy()))
             y_pred.extend(list(y_hat.detach().cpu().numpy()))
-            y_vals.extend(list(y_val.detach().cpu().numpy()))
+            y_vals.extend(list(y_val))
             y_normal.extend(list(dists.detach().cpu().numpy()[:, 0].reshape(-1)))
         # print(multilabel_confusion_matrix(y_true, y_pred))
         # print(classification_report(y_true, y_pred, digits=5))
@@ -345,11 +365,11 @@ class ProtoNet(nn.Module):
                 'y_true': y_true,
                 'y_vals': y_vals,
                 'y_all': y_all,
-                'y_dist':y_dist,
-                'y_normal':y_normal,
+                'y_dist': y_dist,
+                'y_normal': y_normal,
                 'protoes': protoes}, f1_score(y_true, y_pred, average='macro')
 
-    def embedding(self, train_iter, test_iter, path='PN.pth'):
+    def embedding(self, train_iter, test_iter, path='PN.pth', validation=0):
         self.encoder = torch.load('./CERT/saved_models/' + path)
         self.encoder.to(self.device)
         self.encoder.eval()
@@ -358,7 +378,7 @@ class ProtoNet(nn.Module):
         # print('Compute the centers with training dataset')
         for batch in train_iter:
             x = batch[0].to(self.device)
-            x_lens = batch[1]
+            x_lens = batch[1].to(self.device)
             labels = batch[2]
             z = self.encoder.forward(x, x_lens)
             embs.extend(z.detach().cpu().numpy())
@@ -379,17 +399,24 @@ class ProtoNet(nn.Module):
         # print('Make prediction with centers')
         for batch in test_iter:
             x = batch[0].to(self.device)
-            x_lens = batch[1]
+            x_lens = batch[1].to(self.device)
             y_true.extend(list(batch[2]))
             z = self.encoder.forward(x, x_lens)
             x_vals.extend(z.cpu().detach().numpy())
             dists = euclidean_dist(z, protoes)
             y_dist.extend(list(torch.min(dists, dim=1)[0].detach().cpu().numpy()))
+            if validation == 0:
+                y_val, _ = F.softmax(-dists, dim=1).max(1)
+                y_val = y_val.detach().cpu().numpy()
+            else:
+                y_val = F.softmax(-dists, dim=1).detach().cpu().numpy()[
+                    list(range(len(batch[2]))), list(batch[2])].reshape(-1)
+                assert len(y_val) == len(batch[2]), 'Length for y_val is different than org'
             log_p_y = F.log_softmax(-dists, dim=1)
-            y_val, y_hat = log_p_y.max(1)
+            _, y_hat = log_p_y.max(1)
             y_all.extend(list(F.softmax(-dists, dim=1).detach().cpu().numpy()))
             y_pred.extend(list(y_hat.detach().cpu().numpy()))
-            y_vals.extend(list(y_val.detach().cpu().numpy()))
+            y_vals.extend(list(y_val))
             y_normal.extend(list(dists.detach().cpu().numpy()[:,0].reshape(-1)))
         # print(multilabel_confusion_matrix(y_true, y_pred))
         # print(classification_report(y_true, y_pred, digits=5))
@@ -415,6 +442,9 @@ class ProtoTrainer(object):
         self.n_way = options['n_ways']
         self.n_support = options['n_support']
         self.n_query = options['n_query']
+        self.n_valid = options['n_valid']
+        self.hard_boundary = 0.5
+        self.r_hard = options['r_hard']
         self.max_epoch = options['max_epoch']
         self.epoch_size = options['epoch_size']
         self.train_iter = None
@@ -425,31 +455,30 @@ class ProtoTrainer(object):
         self.temp_net = load_protonet_lstm(options).to(options['device'])
         self.optim_temp = optim.Adam(self.temp_net.parameters(), lr=options['lr'])
         self.validation_size = options['validation_size']
-        self.name = ''+str(options['r_ad_alpha'])+str(options['r_cl_alpha'])+str(self.seed)+str(self.validation_size)+str(self.n_way)
+        self.name = '' + str(options['r_ad_alpha']) + str(options['r_cl_alpha']) + str(self.seed) + str(
+            self.validation_size) + str(self.n_way)
 
     def training_first(self, df_seen, df_unseen, df_sup, test_x, test_y):
         df_seen = pd.concat([df_seen, df_sup]).reset_index(drop=True)
-        for i in range(len(set(df_seen['y_pred']))):
+        for i in range(len(set(df_seen['y_true']))):
             if i == 0:
-                df_seen_eval = df_seen.loc[df_seen['y_pred'] == i].sample(
-                    max(1, math.floor(len(df_seen.loc[df_seen['y_pred'] == i]) * 0.4)), replace=False)
+                df_seen_eval = df_seen.loc[df_seen['y_true'] == i].sample(self.n_valid, replace=False)
             else:
-                df_seen_eval = pd.concat([df_seen_eval, df_seen.loc[df_seen['y_pred'] == i].sample(
-                    max(1, math.floor(len(df_seen.loc[df_seen['y_pred'] == i]) * 0.4)), replace=False)], axis=0)
+                df_seen_eval = pd.concat([df_seen_eval, df_seen.loc[df_seen['y_true'] == i].sample(self.n_valid, replace=False)], axis=0)
         df_seen.drop(list(set(df_seen_eval.index.values)), inplace=True)
         df_seen.reset_index(drop=True, inplace=True)
         df_seen_eval.reset_index(drop=True, inplace=True)
 
         train_x = df_seen.iloc[:, :-3].values
-        train_y = df_seen['y_pred'].values
+        train_y = df_seen['y_true'].values
         self.best_net.train(self.optim_best, train_x, train_y, self.n_way, self.n_support, self.n_query,
-                                  self.max_epoch, self.epoch_size, path='best'+str(self.name)+'.pth')
+                                  self.max_epoch, self.epoch_size, path='best'+self.name+'.pth')
         train_iter = get_iter(list_to_tensor(train_x), train_y)
         self.train_iter = train_iter
-        seen_test_iter = get_iter(list_to_tensor(df_seen_eval.iloc[:, :-3].values), df_seen_eval['y_pred'].values)
-        seen_result, seen_f1 = self.best_net.test(train_iter, seen_test_iter, path='best'+str(self.name)+'.pth')
+        seen_test_iter = get_iter(list_to_tensor(df_seen_eval.iloc[:, :-3].values), df_seen_eval['y_true'].values)
+        seen_result, seen_f1 = self.best_net.test(train_iter, seen_test_iter, path='best'+self.name+'.pth', validation=1)
         test_iter = get_iter(list_to_tensor(test_x), test_y)
-        test_result, test_f1 = self.best_net.test(train_iter, test_iter, path='best'+str(self.name)+'.pth')
+        test_result, test_f1 = self.best_net.test(train_iter, test_iter, path='best'+self.name+'.pth')
 
         # print result for the first iterator
         print('First time result with only few shot samples')
@@ -468,7 +497,7 @@ class ProtoTrainer(object):
             utils.getfpr95tpr(y_true=test_true_ab, dist=test_result['y_normal'])))
 
         unseen_iter = get_iter(list_to_tensor(df_unseen.iloc[:, :-3].values), df_unseen['y_true'].values)
-        dic = self.best_net.embedding(train_iter, unseen_iter, path='best'+str(self.name)+'.pth')
+        dic = self.best_net.embedding(train_iter, unseen_iter, path='best'+self.name+'.pth')
         df_unseen['dist'] = dic['y_dist']
         df_unseen['y_pred'] = dic['y_pred']
         seen_true_ad = np.array(seen_result['y_true']).copy()
@@ -476,32 +505,34 @@ class ProtoTrainer(object):
         seen_pred_ad = np.array(seen_result['y_pred']).copy()
         seen_pred_ad[seen_pred_ad >= 1] = 1
         seen_f1_ad = f1_score(y_true=seen_true_ad, y_pred=seen_pred_ad)
-        print(df_unseen.groupby(['y_pred', 'y_true']).count())
+        hard_sample = [ind for ind, val in enumerate(seen_result['y_vals']) if val < self.hard_boundary]
+        if len(hard_sample) == 0:
+            seen_prob = 1
+        else:
+            seen_prob = np.mean([i for i in seen_result['y_vals'] if i < self.hard_boundary])
 
-
-
-        return df_seen, df_seen_eval, df_unseen, seen_f1_ad, seen_f1
+        return df_seen, df_seen_eval, df_unseen, seen_f1_ad, seen_f1, hard_sample, seen_prob
 
     def training_baseline(self, df_seen, df_seen_eval, df_unseen, test_x, test_y):
-        # n_clusters = set(df_unseen['y_pred'].values)
-        # for ind, val in enumerate(n_clusters):
-        #     if ind == 0:
-        #         n = int(0.1 * len(df_unseen.loc[df_unseen['y_pred'] == val]))
-        #         df_samples = df_unseen.loc[df_unseen['y_pred'] == val].nsmallest(n, 'dist')
-        #     else:
-        #         n = int(0.1 * len(df_unseen.loc[df_unseen['y_pred'] == val]))
-        #         df_samples = pd.concat([df_samples, df_unseen.loc[df_unseen['y_pred'] == val].nsmallest(n, 'dist')])
-        #
-        # df_seen_0 = pd.concat([df_seen, df_seen_eval, df_samples], axis=0).reset_index(drop=True)
-        df_seen_0 = pd.concat([df_seen, df_seen_eval, df_unseen], axis=0).reset_index(drop=True)
+        n_clusters = set(df_unseen['y_pred'].values)
+        for ind, val in enumerate(n_clusters):
+            if ind == 0:
+                n = int(0.1 * len(df_unseen.loc[df_unseen['y_pred'] == val]))
+                df_samples = df_unseen.loc[df_unseen['y_pred'] == val].nsmallest(n, 'dist')
+            else:
+                n = int(0.1 * len(df_unseen.loc[df_unseen['y_pred'] == val]))
+                df_samples = pd.concat([df_samples, df_unseen.loc[df_unseen['y_pred'] == val].nsmallest(n, 'dist')])
+
+        df_seen_0 = pd.concat([df_seen, df_seen_eval, df_samples], axis=0).reset_index(drop=True)
+        # df_seen_0 = pd.concat([df_seen, df_seen_eval, df_unseen], axis=0).reset_index(drop=True)
         train_x = df_seen_0.iloc[:, :-3].values
         train_y = df_seen_0['y_pred'].values
         self.temp_net.train(self.optim_temp, train_x, train_y, self.n_way, self.n_support, self.n_query,
-                                  self.max_epoch, self.epoch_size, path='baseline'+str(self.name)+'.pth')
+                                  self.max_epoch, self.epoch_size, path='baseline'+self.name+'.pth')
 
         train_iter = get_iter(list_to_tensor(train_x), train_y)
         test_iter = get_iter(list_to_tensor(test_x), test_y)
-        test_result, test_f1 = self.temp_net.test(train_iter, test_iter, path='baseline'+str(self.name)+'.pth')
+        test_result, test_f1 = self.temp_net.test(train_iter, test_iter, path='baseline'+self.name+'.pth')
 
         # print result for the first iterator
         print('Pseudo-label results as baseline')
@@ -521,26 +552,37 @@ class ProtoTrainer(object):
 
         self.temp_net.to('cpu')
 
-    def training_before(self, df_seen, df_unseen):
-        for i in range(len(set(df_seen['y_pred']))):
-            if i == 0:
-                df_seen_eval = df_seen.loc[df_seen['y_pred'] == i].sample(
-                    max(1, math.floor(len(df_seen.loc[df_seen['y_pred'] == i]) * 0.4)), replace=False)
-            else:
-                df_seen_eval = pd.concat([df_seen_eval, df_seen.loc[df_seen['y_pred'] == i].sample(
-                    max(1, math.floor(len(df_seen.loc[df_seen['y_pred'] == i]) * 0.4)), replace=False)], axis=0)
-        df_seen.drop(list(set(df_seen_eval.index.values)), inplace=True)
-        df_seen.reset_index(drop=True, inplace=True)
-        df_seen_eval.reset_index(drop=True, inplace=True)
-        train_x = df_seen.iloc[:, :-3].values
-        train_y = df_seen['y_pred'].values
+    def training_before(self, df_seen, df_seen_eval, df_unseen, df_selected, max_reward, i_iterator=0):
+        if max_reward == (self.options['r_ad_alpha']+self.options['r_cl_alpha']+self.r_hard):
+            df_seen = pd.concat([df_seen, df_seen_eval], axis=0)
+            df_seen.reset_index(drop=True, inplace=True)
+            for i in range(len(set(df_seen['y_true']))):
+                if i == 0:
+                    if self.n_valid == self.validation_size:
+                        df_seen_eval = df_seen.loc[df_seen['y_true'] == i].copy()
+                    else:
+                        df_seen_eval = df_seen.loc[df_seen['y_true'] == i].sample(self.n_valid, replace=False, random_state=i_iterator)
+                else:
+                    if self.n_valid == self.validation_size:
+                        df_seen_eval = pd.concat([df_seen_eval, df_seen.loc[df_seen['y_true'] == i]], axis=0)
+                    else:
+                        df_seen_eval = pd.concat([df_seen_eval, df_seen.loc[df_seen['y_true'] == i].sample(self.n_valid, replace=False, random_state=i_iterator)], axis=0)
+            df_seen.drop(list(set(df_seen_eval.index.values)), inplace=True)
+            df_seen.reset_index(drop=True, inplace=True)
+            df_seen_eval.reset_index(drop=True, inplace=True)
+        if len(df_selected) == 0:
+            train_x = df_seen.iloc[:, :-3].values
+            train_y = df_seen['y_true'].values
+        else:
+            train_x = np.concatenate((df_seen.iloc[:, :-3].values, df_selected.iloc[:, :-3].values), axis=0)
+            train_y = np.concatenate((df_seen['y_true'].values, df_selected['y_pred'].values), axis=None)
 
         train_iter = get_iter(list_to_tensor(train_x), train_y)
         self.train_iter = train_iter
-        seen_test_iter = get_iter(list_to_tensor(df_seen_eval.iloc[:, :-3].values), df_seen_eval['y_pred'].values)
-        seen_result, seen_f1 = self.best_net.test(train_iter, seen_test_iter, path='best'+str(self.name)+'.pth')
+        seen_test_iter = get_iter(list_to_tensor(df_seen_eval.iloc[:, :-3].values), df_seen_eval['y_true'].values)
+        seen_result, seen_f1 = self.best_net.test(train_iter, seen_test_iter, path='best'+self.name+'.pth', validation=1)
         unseen_iter = get_iter(list_to_tensor(df_unseen.iloc[:, :-3].values), df_unseen['y_true'].values)
-        dic = self.best_net.embedding(train_iter, unseen_iter, path='best'+str(self.name)+'.pth')
+        dic = self.best_net.embedding(train_iter, unseen_iter, path='best'+self.name+'.pth')
         df_unseen['dist'] = dic['y_dist']
         df_unseen['y_pred'] = dic['y_pred']
 
@@ -549,52 +591,68 @@ class ProtoTrainer(object):
         seen_pred_ad = np.array(seen_result['y_pred']).copy()
         seen_pred_ad[seen_pred_ad >= 1] = 1
         seen_f1_ad = f1_score(y_true=seen_true_ad, y_pred=seen_pred_ad)
-        return df_seen, df_seen_eval, df_unseen, seen_f1_ad, seen_f1
+        hard_sample = [ind for ind, val in enumerate(seen_result['y_vals']) if val < self.hard_boundary]
+        if len(hard_sample) == 0:
+            seen_prob = 1
+        else:
+            seen_prob = np.mean([i for i in seen_result['y_vals'] if i < self.hard_boundary])
+        return df_seen, df_seen_eval, df_unseen, df_selected, seen_f1_ad, seen_f1, hard_sample, seen_prob
 
     def in_embedding(self, df_samples, iter):
         samples_iter = get_iter(list_to_tensor(df_samples.iloc[:, :-3].values), df_samples['y_pred'].values,
                                 shuffle=False)
-        result = self.best_net.embedding(self.train_iter, samples_iter, 'best'+str(self.name)+'.pth')
+        result = self.best_net.embedding(self.train_iter, samples_iter, 'best'+self.name+'.pth')
         df = pd.DataFrame(result['x_vals'])
         df['prob'] = result['y_vals']
         return df
 
-    def training_after(self, df_seen_episode, df_seen_eval):
-        train_x = df_seen_episode.iloc[:, :-3].values
-        train_y = df_seen_episode['y_pred'].values
-        self.current_net.load_encoder('best'+str(self.name)+'.pth')
+    def training_after(self, df_seen, df_selected, df_selected_episode, df_seen_eval, hard_sample):
+        if len(df_selected) == 0:
+            train_x = np.concatenate((df_seen.iloc[:, :-3].values, df_selected_episode.iloc[:, :-3].values), axis=0)
+            train_y = np.concatenate((df_seen['y_true'], df_selected_episode['y_pred'].values), axis=None)
+        else:
+            train_x = np.concatenate((df_seen.iloc[:, :-3].values, df_selected.iloc[:, :-3].values, df_selected_episode.iloc[:, :-3].values), axis=0)
+            train_y = np.concatenate((df_seen['y_true'], df_selected['y_pred'].values, df_selected_episode['y_pred'].values), axis=None)
+        self.current_net.load_encoder('best'+self.name+'.pth')
         self.optim_current = optim.Adam(self.current_net.parameters(), lr=self.options['lr'])
         self.current_net.train(self.optim_current, train_x, train_y, self.n_way, self.n_support, self.n_query,
-                                  int(self.max_epoch/2), self.epoch_size, path='current'+str(self.name)+'.pth')
-        # self.current_net.train(self.optim_current, train_x, train_y, self.n_way, self.n_support, self.n_query,
-        #                           self.max_epoch, self.epoch_size, path='current'+str(self.seed)+'.pth')
+                                  int(self.max_epoch/2), self.epoch_size, path='current'+self.name+'.pth', retrain=1)
         train_iter = get_iter(list_to_tensor(train_x), train_y)
-        seen_test_iter = get_iter(list_to_tensor(df_seen_eval.iloc[:, :-3].values), df_seen_eval['y_pred'].values)
-        seen_result, seen_f1 = self.current_net.test(train_iter, seen_test_iter, path='current'+str(self.name)+'.pth')
+        seen_test_iter = get_iter(list_to_tensor(df_seen_eval.iloc[:, :-3].values), df_seen_eval['y_true'].values)
+        seen_result, seen_f1 = self.current_net.test(train_iter, seen_test_iter, path='current'+self.name+'.pth', validation=1)
 
         seen_true_ad = np.array(seen_result['y_true']).copy()
         seen_true_ad[seen_true_ad >= 1] = 1
         seen_pred_ad = np.array(seen_result['y_pred']).copy()
         seen_pred_ad[seen_pred_ad >= 1] = 1
         seen_f1_ad = f1_score(y_true=seen_true_ad, y_pred=seen_pred_ad)
-
-        return seen_f1_ad, seen_f1
+        if len(hard_sample) == 0:
+            seen_prob = 1
+        else:
+            seen_prob = np.mean(np.array(seen_result['y_vals'])[hard_sample])
+        return seen_f1_ad, seen_f1, seen_prob
 
 
     def save_best_model(self):
         os.rename('./CERT/saved_models/current'+str(self.name)+'.pth', './CERT/saved_models/temp_best'+str(self.name)+'.pth')
 
+    def remove_model(self):
+        os.remove('./CERT/saved_models/temp_best' + self.name + '.pth')
 
     def update_best_model(self):
         os.remove('./CERT/saved_models/best'+str(self.name)+'.pth')
         os.rename('./CERT/saved_models/temp_best'+str(self.name)+'.pth', './CERT/saved_models/best'+str(self.name)+'.pth')
 
-    def final_training_testing(self, df_seen, test_x, test_y):
-        train_x = df_seen.iloc[:, :-3].values
-        train_y = df_seen['y_pred'].values
+    def final_training_testing(self, df_seen, df_selected, test_x, test_y, final=0):
+        if len(df_selected) == 0:
+            train_x = df_seen.iloc[:, :-3].values
+            train_y = df_seen['y_true'].values
+        else:
+            train_x = np.concatenate((df_seen.iloc[:, :-3].values, df_selected.iloc[:, :-3].values), axis=0)
+            train_y = np.concatenate((df_seen['y_true'].values, df_selected['y_pred']), axis=None)
         train_iter = get_iter(list_to_tensor(train_x), train_y)
         test_iter = get_iter(list_to_tensor(test_x), test_y)
-        test_result, test_f1 = self.best_net.test(train_iter, test_iter, path='best'+str(self.name)+'.pth')
+        test_result, test_f1 = self.best_net.test(train_iter, test_iter, path='best'+self.name+'.pth')
 
         # print result for the first iterator
         print(classification_report(test_result['y_true'], test_result['y_pred'], digits=5))
@@ -608,8 +666,10 @@ class ProtoTrainer(object):
         print(classification_report(test_true_ab, test_pred_ab, digits=5))
         print('Anomaly Detection AUC-ROC: {:.5f}'.format(roc_auc_score(test_true_ab, test_pred_ab)))
         print('Anomaly Detection AUC-PR: {:.5f}'.format(average_precision_score(test_true_ab, test_pred_ab)))
-        print('Anomaly Detection FPR-AT-95-TPR: {:.5f}'.format(utils.getfpr95tpr(y_true=test_true_ab, dist=test_result['y_normal'])))
-        print(df_seen.groupby(['y_pred', 'y_true']).count())
+        if final:
+            print('Anomaly Detection FPR-AT-95-TPR: {:.5f}'.format(utils.getfpr95tpr(y_true=test_true_ab, dist=test_result['y_normal'])))
+        if len(df_selected) > 0:
+            print(df_selected.groupby(['y_pred', 'y_true']).count())
 
 
 

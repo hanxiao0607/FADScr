@@ -8,7 +8,7 @@ from sklearn.preprocessing import MinMaxScaler
 
 def main():
     dir_UNSW = '../UNSW/Datasets/NUSW_small.csv'
-    lst = list(range(10))
+    lst = list(range(20))
     print('UNSW')
     for i in lst:
         X, y, test_x, test_y = utils.preprocessing_UNSW_DeepSAD(dir_UNSW, n_sup=10, seed=i, adc=0, pul=1)
