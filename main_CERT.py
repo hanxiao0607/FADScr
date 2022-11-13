@@ -17,11 +17,11 @@ def arg_parser():
     parser.add_argument('--dataset_dir', help='please choose dataset directory', default='./CERT/Datasets/CERT52_small.csv')
     parser.add_argument('--out_dim', help='output dimensions', default=64)
     parser.add_argument('--lr', help='learning rate', default=0.001)
-    parser.add_argument('--device', help='device cpu or cuda', default='cuda:0')
+    parser.add_argument('--device', help='device cpu or cuda', default='cuda:1')
     parser.add_argument('--dataset', help='name of dataset', default='CERT')
     parser.add_argument('--r_ad_alpha', help='hyper-parameter for the reward of anomaly detection', default=1)
     parser.add_argument('--r_cl_alpha', help='hyper-parameter for the reward of anomaly classification', default=10)
-    parser.add_argument('--r_hard', help='hyper-parameter for the reward of hard samples', default=0.01)
+    parser.add_argument('--r_hard', help='hyper-parameter for the reward of hard samples', default=0.0001)
 
     # set unseen validation set parameters
     parser.add_argument('--validation_size', help='set validation size for each class', default=10)
@@ -49,7 +49,7 @@ def arg_parser():
 
 
 def main():
-    for i in range(10,20):
+    for i in range(0,20):
         print('='*20)
         print(f'Results for the random seed: {i}')
         parser = arg_parser()

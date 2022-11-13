@@ -41,8 +41,8 @@ def preprocessing_UNSW(dir, n_sup=10, seed=42, adc=0, unsupervised=1, oversampli
     df6['attack_cat'] = 4
     df7['attack_cat'] = 5
     if unsupervised == 1:
-        seen_x = df0.iloc[:20000].iloc[:, :-1].values
-        seen_y = df0.iloc[:20000].iloc[:, -1].values
+        seen_x = df0.iloc[:100].iloc[:, :-1].values
+        seen_y = df0.iloc[:100].iloc[:, -1].values
         test_x = pd.concat([df0.iloc[-20000:], df1.iloc[-2000:], df4.iloc[-2000:], df5.iloc[-2000:], df6.iloc[-2000:],
                             df7.iloc[-2000:]], axis=0, ignore_index=True).iloc[:, :-1].values
         test_y = pd.concat([df0.iloc[-20000:], df1.iloc[-2000:], df4.iloc[-2000:], df5.iloc[-2000:], df6.iloc[-2000:],
@@ -50,16 +50,16 @@ def preprocessing_UNSW(dir, n_sup=10, seed=42, adc=0, unsupervised=1, oversampli
         if adc ==0:
             test_y[20000:] = 1
     else:
-        seen_x = pd.concat([df0.iloc[:20000], df1.iloc[:n_sup], df4.iloc[:n_sup], df5.iloc[:n_sup], df6.iloc[:n_sup], df7.iloc[:n_sup]], axis=0, ignore_index=True).iloc[:, :-1].values
-        seen_y = pd.concat([df0.iloc[:20000], df1.iloc[:n_sup], df4.iloc[:n_sup], df5.iloc[:n_sup], df6.iloc[:n_sup], df7.iloc[:n_sup]], axis=0, ignore_index=True).iloc[:, -1].values
+        seen_x = pd.concat([df0.iloc[:100], df1.iloc[:n_sup], df4.iloc[:n_sup], df5.iloc[:n_sup], df6.iloc[:n_sup], df7.iloc[:n_sup]], axis=0, ignore_index=True).iloc[:, :-1].values
+        seen_y = pd.concat([df0.iloc[:100], df1.iloc[:n_sup], df4.iloc[:n_sup], df5.iloc[:n_sup], df6.iloc[:n_sup], df7.iloc[:n_sup]], axis=0, ignore_index=True).iloc[:, -1].values
         test_x = pd.concat([df0.iloc[-20000:], df1.iloc[-2000:], df4.iloc[-2000:], df5.iloc[-2000:], df6.iloc[-2000:], df7.iloc[-2000:]], axis=0, ignore_index=True).iloc[:, :-1].values
         test_y = pd.concat([df0.iloc[-20000:], df1.iloc[-2000:], df4.iloc[-2000:], df5.iloc[-2000:], df6.iloc[-2000:], df7.iloc[-2000:]], axis=0, ignore_index=True).iloc[:, -1].values
         if adc == 0:
-            seen_y[20000:] = 1
+            seen_y[100:] = 1
             test_y[20000:] = 1
         if oversampling == 1:
             sm = SMOTE(random_state=seed)
-            df_temp = df0.iloc[:20000]
+            df_temp = df0.iloc[:100]
             df_temp = pd.concat([df_temp, df1.iloc[:n_sup], df4.iloc[:n_sup], df5.iloc[:n_sup], df6.iloc[:n_sup],
                  df7.iloc[:n_sup]], axis=0, ignore_index=True)
             seen_x = df_temp.iloc[:, :-1].values
@@ -87,13 +87,13 @@ def preprocessing_UNSW_DeepSAD(dir, n_sup=10, seed=42, adc=0, pul=0):
     df5['attack_cat'] = 3
     df6['attack_cat'] = 4
     df7['attack_cat'] = 5
-    seen_x = pd.concat([df0.iloc[:20000], df1.iloc[:n_sup], df4.iloc[:n_sup], df5.iloc[:n_sup], df6.iloc[:n_sup], df7.iloc[:n_sup]], axis=0, ignore_index=True).iloc[:, :-1].values
-    seen_y = pd.concat([df0.iloc[:20000], df1.iloc[:n_sup], df4.iloc[:n_sup], df5.iloc[:n_sup], df6.iloc[:n_sup], df7.iloc[:n_sup]], axis=0, ignore_index=True).iloc[:, -1].values
-    unseen_x = df0.iloc[20000:50000].iloc[:, :-1].values
+    seen_x = pd.concat([df0.iloc[:100], df1.iloc[:n_sup], df4.iloc[:n_sup], df5.iloc[:n_sup], df6.iloc[:n_sup], df7.iloc[:n_sup]], axis=0, ignore_index=True).iloc[:, :-1].values
+    seen_y = pd.concat([df0.iloc[:100], df1.iloc[:n_sup], df4.iloc[:n_sup], df5.iloc[:n_sup], df6.iloc[:n_sup], df7.iloc[:n_sup]], axis=0, ignore_index=True).iloc[:, -1].values
+    unseen_x = df0.iloc[100:30100].iloc[:, :-1].values
     test_x = pd.concat([df0.iloc[-20000:], df1.iloc[-2000:], df4.iloc[-2000:], df5.iloc[-2000:], df6.iloc[-2000:], df7.iloc[-2000:]], axis=0, ignore_index=True).iloc[:, :-1].values
     test_y = pd.concat([df0.iloc[-20000:], df1.iloc[-2000:], df4.iloc[-2000:], df5.iloc[-2000:], df6.iloc[-2000:], df7.iloc[-2000:]], axis=0, ignore_index=True).iloc[:, -1].values
     if adc == 0:
-        seen_y[20000:] = 1
+        seen_y[100:] = 1
         test_y[20000:] = 1
     if pul == 0:
         return seen_x, seen_y, unseen_x, test_x, test_y
@@ -115,8 +115,8 @@ def preprocessing_IDS(dir, n_sup=10, seed=42, adc=0, unsupervised=1, oversamplin
     df['Label'].loc[df['Label'] == 4] = 3
     df3 = df.loc[df['Label'] == 3].sample(frac=1, random_state=seed).reset_index(drop=True)
     if unsupervised == 1:
-        seen_x = df0.iloc[:20000].iloc[:, :-1].values
-        seen_y = df0.iloc[:20000].iloc[:, -1].values
+        seen_x = df0.iloc[:100].iloc[:, :-1].values
+        seen_y = df0.iloc[:100].iloc[:, -1].values
         test_x = pd.concat([df0.iloc[-20000:], df1.iloc[-2000:], df2.iloc[-2000:], df3.iloc[-2000:]], axis=0,
                            ignore_index=True).iloc[:, :-1].values
         test_y = pd.concat([df0.iloc[-20000:], df1.iloc[-2000:], df2.iloc[-2000:], df3.iloc[-2000:]], axis=0,
@@ -124,17 +124,17 @@ def preprocessing_IDS(dir, n_sup=10, seed=42, adc=0, unsupervised=1, oversamplin
         if adc == 0:
             test_y[20000:] = 1
     else:
-        seen_x = pd.concat([df0.iloc[:20000], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup]], axis=0, ignore_index=True).iloc[:, :-1].values
-        seen_y = pd.concat([df0.iloc[:20000], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup]], axis=0, ignore_index=True).iloc[:, -1].values
+        seen_x = pd.concat([df0.iloc[:100], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup]], axis=0, ignore_index=True).iloc[:, :-1].values
+        seen_y = pd.concat([df0.iloc[:100], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup]], axis=0, ignore_index=True).iloc[:, -1].values
         test_x = pd.concat([df0.iloc[-20000:], df1.iloc[-2000:], df2.iloc[-2000:], df3.iloc[-2000:]], axis=0, ignore_index=True).iloc[:, :-1].values
         test_y = pd.concat([df0.iloc[-20000:], df1.iloc[-2000:], df2.iloc[-2000:], df3.iloc[-2000:]], axis=0, ignore_index=True).iloc[:, -1].values
         if adc == 0:
-            seen_y[20000:] = 1
+            seen_y[100:] = 1
             test_y[20000:] = 1
         if oversampling == 1:
-            seen_x = pd.concat([df0.iloc[:20000], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup]], axis=0,
+            seen_x = pd.concat([df0.iloc[:100], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup]], axis=0,
                                ignore_index=True).iloc[:, :-1].values
-            seen_y = pd.concat([df0.iloc[:20000], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup]], axis=0,
+            seen_y = pd.concat([df0.iloc[:100], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup]], axis=0,
                                ignore_index=True).iloc[:, -1].values
 
             sm = SMOTE(random_state=seed)
@@ -153,13 +153,13 @@ def preprocessing_IDS_DeepSAD(dir, n_sup=10, seed=42, adc=0, pul=0):
     df['Label'].loc[df['Label'] == 5] = 4
     df['Label'].loc[df['Label'] == 4] = 3
     df3 = df.loc[df['Label'] == 3].sample(frac=1, random_state=seed).reset_index(drop=True)
-    seen_x = pd.concat([df0.iloc[:20000], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup]], axis=0, ignore_index=True).iloc[:, :-1].values
-    seen_y = pd.concat([df0.iloc[:20000], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup]], axis=0, ignore_index=True).iloc[:, -1].values
-    unseen_x = df0.iloc[20000:50000].iloc[:, :-1].values
+    seen_x = pd.concat([df0.iloc[:100], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup]], axis=0, ignore_index=True).iloc[:, :-1].values
+    seen_y = pd.concat([df0.iloc[:100], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup]], axis=0, ignore_index=True).iloc[:, -1].values
+    unseen_x = df0.iloc[100:30100].iloc[:, :-1].values
     test_x = pd.concat([df0.iloc[-20000:], df1.iloc[-2000:], df2.iloc[-2000:], df3.iloc[-2000:]], axis=0, ignore_index=True).iloc[:, :-1].values
     test_y = pd.concat([df0.iloc[-20000:], df1.iloc[-2000:], df2.iloc[-2000:], df3.iloc[-2000:]], axis=0, ignore_index=True).iloc[:, -1].values
     if adc == 0:
-        seen_y[20000:] = 1
+        seen_y[100:] = 1
         test_y[20000:] = 1
     if pul == 0:
         return seen_x, seen_y, unseen_x, test_x, test_y
@@ -196,7 +196,7 @@ def key2num(ary, dic):
             if j in dic:
                 temp.append(dic[j])
             else:
-                temp.append(len(dic))
+                temp.append(0)
         new_ary.append(str(temp))
 
 
@@ -229,11 +229,11 @@ def preprocessing_CERT_EMB(dir, n_sup=10, seed=42, adc=0, unsupervised=1, oversa
     df4 = df4.loc[df4['length'] <= 134].reset_index(drop=True)
     df4.drop(columns='length', inplace=True)
 
-    dic = get_training_dictionary(pd.concat([df0.iloc[:20000], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup], df4.iloc[:n_sup]], axis=0, ignore_index=True))
+    dic = get_training_dictionary(pd.concat([df0.iloc[:100], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup], df4.iloc[:n_sup]], axis=0, ignore_index=True))
 
     if unsupervised == 1:
-        seen_x = key2num(df0.iloc[:20000].iloc[:, :-1].values, dic)
-        seen_y = df0.iloc[:20000].iloc[:, -1].values
+        seen_x = key2num(df0.iloc[:100].iloc[:, :-1].values, dic)
+        seen_y = df0.iloc[:100].iloc[:, -1].values
 
         test_x = key2num(
             pd.concat([df0.iloc[-2000:], df1.iloc[-27:], df2.iloc[-201:], df3.iloc[-10:], df4.iloc[-21:]], axis=0,
@@ -244,18 +244,18 @@ def preprocessing_CERT_EMB(dir, n_sup=10, seed=42, adc=0, unsupervised=1, oversa
             test_y[2000:] = 1
 
     else:
-        seen_x = key2num(pd.concat([df0.iloc[:20000], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup], df4.iloc[:n_sup]], axis=0, ignore_index=True).iloc[:, :-1].values, dic)
-        seen_y = pd.concat([df0.iloc[:20000], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup], df4.iloc[:n_sup]], axis=0, ignore_index=True).iloc[:, -1].values
+        seen_x = key2num(pd.concat([df0.iloc[:100], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup], df4.iloc[:n_sup]], axis=0, ignore_index=True).iloc[:, :-1].values, dic)
+        seen_y = pd.concat([df0.iloc[:100], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup], df4.iloc[:n_sup]], axis=0, ignore_index=True).iloc[:, -1].values
 
         test_x = key2num(pd.concat([df0.iloc[-2000:], df1.iloc[-27:], df2.iloc[-201:], df3.iloc[-10:], df4.iloc[-21:]], axis=0, ignore_index=True).iloc[:, :-1].values, dic)
         test_y = pd.concat([df0.iloc[-2000:], df1.iloc[-27:], df2.iloc[-201:], df3.iloc[-10:], df4.iloc[-21:]], axis=0, ignore_index=True).iloc[:, -1].values
 
         if adc == 0:
-            seen_y[20000:] = 1
+            seen_y[100:] = 1
             test_y[2000:] = 1
         if oversampling == 1:
             sm = SMOTE(random_state=seed)
-            df_temp = df0.iloc[:20000]
+            df_temp = df0.iloc[:100]
             df_temp = pd.concat([df_temp, df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup], df4.iloc[:n_sup]], axis=0, ignore_index=True)
             seen_x = key2num(df_temp.iloc[:, :-1].values, dic)
             seen_y = df_temp.iloc[:, -1].values
@@ -300,11 +300,11 @@ def preprocessing_CERT_EMB_DeepSVDD(dir, n_sup=10, seed=42, adc=0, unsupervised=
     df4 = df4.loc[df4['length'] <= 134].reset_index(drop=True)
     df4.drop(columns='length', inplace=True)
 
-    dic = get_training_dictionary(pd.concat([df0.iloc[:20000], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup], df4.iloc[:n_sup]], axis=0, ignore_index=True))
+    dic = get_training_dictionary(pd.concat([df0.iloc[:100], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup], df4.iloc[:n_sup]], axis=0, ignore_index=True))
 
     if unsupervised == 1:
-        seen_x = key2num_DeepSVDD(df0.iloc[:20000].iloc[:, :-1].values, dic)
-        seen_y = df0.iloc[:20000].iloc[:, -1].values
+        seen_x = key2num_DeepSVDD(df0.iloc[:100].iloc[:, :-1].values, dic)
+        seen_y = df0.iloc[:100].iloc[:, -1].values
 
         test_x = key2num_DeepSVDD(
             pd.concat([df0.iloc[-2000:], df1.iloc[-27:], df2.iloc[-201:], df3.iloc[-10:], df4.iloc[-21:]], axis=0,
@@ -315,14 +315,14 @@ def preprocessing_CERT_EMB_DeepSVDD(dir, n_sup=10, seed=42, adc=0, unsupervised=
             test_y[2000:] = 1
 
     else:
-        seen_x = key2num_DeepSVDD(pd.concat([df0.iloc[:20000], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup], df4.iloc[:n_sup]], axis=0, ignore_index=True).iloc[:, :-1].values, dic)
-        seen_y = pd.concat([df0.iloc[:20000], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup], df4.iloc[:n_sup]], axis=0, ignore_index=True).iloc[:, -1].values
+        seen_x = key2num_DeepSVDD(pd.concat([df0.iloc[:100], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup], df4.iloc[:n_sup]], axis=0, ignore_index=True).iloc[:, :-1].values, dic)
+        seen_y = pd.concat([df0.iloc[:100], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup], df4.iloc[:n_sup]], axis=0, ignore_index=True).iloc[:, -1].values
 
         test_x = key2num_DeepSVDD(pd.concat([df0.iloc[-2000:], df1.iloc[-27:], df2.iloc[-201:], df3.iloc[-10:], df4.iloc[-21:]], axis=0, ignore_index=True).iloc[:, :-1].values, dic)
         test_y = pd.concat([df0.iloc[-2000:], df1.iloc[-27:], df2.iloc[-201:], df3.iloc[-10:], df4.iloc[-21:]], axis=0, ignore_index=True).iloc[:, -1].values
 
         if adc == 0:
-            seen_y[20000:] = 1
+            seen_y[100:] = 1
             test_y[2000:] = 1
 
     return seen_x, seen_y, test_x, test_y
@@ -352,23 +352,23 @@ def preprocessing_CERT_EMB_DeepSAD(dir, n_sup=10, seed=42, adc=0, unsupervised=1
     df4 = df4.loc[df4['length'] <= 134].reset_index(drop=True)
     df4.drop(columns='length', inplace=True)
 
-    dic = get_training_dictionary(pd.concat([df0.iloc[:20000], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup], df4.iloc[:n_sup]], axis=0, ignore_index=True))
+    dic = get_training_dictionary(pd.concat([df0.iloc[:100], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup], df4.iloc[:n_sup]], axis=0, ignore_index=True))
 
-    seen_x = key2num_DeepSVDD(pd.concat([df0.iloc[:20000], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup], df4.iloc[:n_sup]], axis=0, ignore_index=True).iloc[:, :-1].values, dic)
-    seen_y = pd.concat([df0.iloc[:20000], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup], df4.iloc[:n_sup]], axis=0, ignore_index=True).iloc[:, -1].values
+    seen_x = key2num_DeepSVDD(pd.concat([df0.iloc[:100], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup], df4.iloc[:n_sup]], axis=0, ignore_index=True).iloc[:, :-1].values, dic)
+    seen_y = pd.concat([df0.iloc[:100], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup], df4.iloc[:n_sup]], axis=0, ignore_index=True).iloc[:, -1].values
 
-    unseen_x = key2num_DeepSVDD(df0.iloc[20000:40000].iloc[:, :-1].values, dic)
+    unseen_x = key2num_DeepSVDD(df0.iloc[100:20100].iloc[:, :-1].values, dic)
 
     test_x = key2num_DeepSVDD(pd.concat([df0.iloc[-2000:], df1.iloc[-27:], df2.iloc[-201:], df3.iloc[-10:], df4.iloc[-21:]], axis=0, ignore_index=True).iloc[:, :-1].values, dic)
     test_y = pd.concat([df0.iloc[-2000:], df1.iloc[-27:], df2.iloc[-201:], df3.iloc[-10:], df4.iloc[-21:]], axis=0, ignore_index=True).iloc[:, -1].values
 
     if adc == 0:
-        seen_y[20000:] = 1
+        seen_y[100:] = 1
         test_y[2000:] = 1
 
     if unsupervised == 0:
-        df_temp = df0.iloc[:20000]
-        for i in range(20000//n_sup):
+        df_temp = df0.iloc[:100]
+        for i in range(100//n_sup):
             df_temp = pd.concat([df_temp, df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup], df4.iloc[:n_sup]], axis=0, ignore_index=True)
         seen_x = key2num_DeepSVDD(df_temp.iloc[:, :-1].values, dic)
         seen_y = df_temp.iloc[:, -1].values
@@ -401,16 +401,16 @@ def preprocessing_CERT_EMB_PUL(dir, n_sup=10, seed=42):
     df4.drop(columns='length', inplace=True)
 
     dic = get_training_dictionary(
-        pd.concat([df0.iloc[:20000], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup], df4.iloc[:n_sup]], axis=0,
+        pd.concat([df0.iloc[:100], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup], df4.iloc[:n_sup]], axis=0,
                   ignore_index=True))
 
     seen_x = key2num_DeepSVDD(
-        pd.concat([df0.iloc[:20000], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup], df4.iloc[:n_sup]], axis=0,
+        pd.concat([df0.iloc[:100], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup], df4.iloc[:n_sup]], axis=0,
                   ignore_index=True).iloc[:, :-1].values, dic)
-    seen_y = pd.concat([df0.iloc[:20000], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup], df4.iloc[:n_sup]],
+    seen_y = pd.concat([df0.iloc[:100], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup], df4.iloc[:n_sup]],
                        axis=0, ignore_index=True).iloc[:, -1].values
 
-    unseen_x = key2num_DeepSVDD(df0.iloc[20000:40000].iloc[:, :-1].values, dic)
+    unseen_x = key2num_DeepSVDD(df0.iloc[100:20100].iloc[:, :-1].values, dic)
 
     test_x = key2num_DeepSVDD(
         pd.concat([df0.iloc[-2000:], df1.iloc[-27:], df2.iloc[-201:], df3.iloc[-10:], df4.iloc[-21:]], axis=0,
@@ -451,16 +451,16 @@ def preprocessing_CERT_CV_PUL(dir, n_sup=10, seed=42):
     df4.drop(columns='length', inplace=True)
 
     dic = get_training_dictionary(
-        pd.concat([df0.iloc[:20000], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup], df4.iloc[:n_sup]], axis=0,
+        pd.concat([df0.iloc[:100], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup], df4.iloc[:n_sup]], axis=0,
                   ignore_index=True))
 
     seen_x = key2num(
-        pd.concat([df0.iloc[:20000], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup], df4.iloc[:n_sup]], axis=0,
+        pd.concat([df0.iloc[:100], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup], df4.iloc[:n_sup]], axis=0,
                   ignore_index=True).iloc[:, :-1].values, dic)
-    seen_y = pd.concat([df0.iloc[:20000], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup], df4.iloc[:n_sup]],
+    seen_y = pd.concat([df0.iloc[:100], df1.iloc[:n_sup], df2.iloc[:n_sup], df3.iloc[:n_sup], df4.iloc[:n_sup]],
                        axis=0, ignore_index=True).iloc[:, -1].values
 
-    unseen_x = key2num(df0.iloc[20000:40000].iloc[:, :-1].values, dic)
+    unseen_x = key2num(df0.iloc[100:20100].iloc[:, :-1].values, dic)
 
     test_x = key2num(
         pd.concat([df0.iloc[-2000:], df1.iloc[-27:], df2.iloc[-201:], df3.iloc[-10:], df4.iloc[-21:]], axis=0,

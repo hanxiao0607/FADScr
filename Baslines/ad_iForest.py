@@ -1,5 +1,5 @@
-from models import utils, iForest
-
+from models import iForest
+from Baslines import utils
 
 def main():
     dir_UNSW = '../UNSW/Datasets/NUSW_small.csv'

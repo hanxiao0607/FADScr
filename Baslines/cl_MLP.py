@@ -1,4 +1,5 @@
-from models import utils, MLP
+from models import MLP
+from Baslines import utils
 import warnings
 warnings.filterwarnings('ignore')
 

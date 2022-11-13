@@ -1,5 +1,6 @@
-from models import utils, DNN, SeqDNN
+from models import DNN, SeqDNN
 from sklearn.metrics import classification_report, roc_auc_score, average_precision_score
+from Baslines import utils
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -9,7 +10,7 @@ def main():
     print('UNSW')
     for i in lst:
         seen_x, seen_y, test_x, test_y = utils.preprocessing_UNSW(dir_UNSW, n_sup=10, seed=i, adc=1, unsupervised=0, oversampling=1)
-        mlp = DNN.MLP(input_dim=293, output_dim=6, max_epoch=20, batch_size=1024)
+        mlp = DNN.MLP(input_dim=293, output_dim=6, max_epoch=20, batch_size=16)
         mlp.train_MLP(seen_x, seen_y)
         y_pred = mlp.predict(test_x, test_y)
         print('Anomaly Detection report:')
@@ -28,8 +29,8 @@ def main():
     print('-'*20)
     print('CERT')
     for i in lst:
-        seen_x, seen_y, _, test_x, test_y = utils.preprocessing_CERT_EMB_DeepSAD(dir_CERT, n_sup=10, seed=i, adc=1, unsupervised=0)
-        mlp = SeqDNN.MLP(input_dim=24, emb_dim=64, hid_dim=128, output_dim=5, max_epoch=20, batch_size=128)
+        seen_x, seen_y, _, test_x, test_y = utils.preprocessing_CERT_EMB_DeepSAD(dir_CERT, n_sup=10, seed=i, adc=1, unsupervised=1)
+        mlp = SeqDNN.MLP(input_dim=24, emb_dim=64, hid_dim=128, output_dim=5, max_epoch=20, batch_size=16)
         mlp.train_MLP(seen_x, seen_y)
         y_pred = mlp.predict(test_x, test_y)
         print('Anomaly Detection report:')

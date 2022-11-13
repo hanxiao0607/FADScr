@@ -521,6 +521,10 @@ class ProtoTrainer(object):
             df_seen.drop(list(set(df_seen_eval.index.values)), inplace=True)
             df_seen.reset_index(drop=True, inplace=True)
             df_seen_eval.reset_index(drop=True, inplace=True)
+            train_x = df_seen.iloc[:, :-3].values
+            train_y = df_seen['y_true'].values
+            self.best_net.train(self.optim_best, train_x, train_y, self.n_way, self.n_support, self.n_query,
+                                self.max_epoch, self.epoch_size, path='best' + self.name + '.pth')
         if len(df_selected) == 0:
             train_x = df_seen.iloc[:, :-3].values
             train_y = df_seen['y_true'].values

@@ -462,7 +462,6 @@ class ProtoTrainer(object):
             seen_prob = 1
         else:
             seen_prob = np.mean([i for i in seen_result['y_vals'] if i < self.hard_boundary])
-
         return df_seen, df_seen_eval, df_unseen, seen_f1_ad, seen_f1, hard_sample, seen_prob
 
     def training_baseline(self, df_seen, df_seen_eval, df_unseen, test_x, test_y):
@@ -522,6 +521,10 @@ class ProtoTrainer(object):
             df_seen.drop(list(set(df_seen_eval.index.values)), inplace=True)
             df_seen.reset_index(drop=True, inplace=True)
             df_seen_eval.reset_index(drop=True, inplace=True)
+            train_x = df_seen.iloc[:, :-3].values
+            train_y = df_seen['y_true'].values
+            self.best_net.train(self.optim_best, train_x, train_y, self.n_way, self.n_support, self.n_query,
+                                self.max_epoch, self.epoch_size, path='best' + self.name + '.pth')
         if len(df_selected) == 0:
             train_x = df_seen.iloc[:, :-3].values
             train_y = df_seen['y_true'].values

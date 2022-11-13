@@ -214,7 +214,10 @@ class RAD(object):
                     (len(df_selected.groupby(['y_pred']).count()) == self.options['n_ways']):
                 df_seen = pd.concat([df_seen, df_seen_eval])
                 df_seen.reset_index(drop=True, inplace=True)
-                prototrainer.final_training_testing(df_seen, df_selected, test_x, test_y)
+                prototrainer.final_training_testing(df_seen, df_selected, test_x, test_y, final=1)
+            # df_seen = pd.concat([df_seen, df_seen_eval])
+            # df_seen.reset_index(drop=True, inplace=True)
+            # prototrainer.final_training_testing(df_seen, df_selected, test_x, test_y, final=1)
         df_seen = pd.concat([df_seen, df_seen_eval])
         df_seen.reset_index(drop=True, inplace=True)
         prototrainer.final_training_testing(df_seen, df_selected, test_x, test_y, final=1)

@@ -1,4 +1,4 @@
-from models import utils, DeepSVDD, SeqDeepSVDD
+from models import DeepSVDD, SeqDeepSVDD
 from sklearn.metrics import classification_report, roc_auc_score, average_precision_score
 from Baslines import utils
 

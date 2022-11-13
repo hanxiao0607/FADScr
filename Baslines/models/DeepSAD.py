@@ -124,9 +124,9 @@ class DeepSAD(object):
                 label = batch[1].to(self.device)
                 output = self.net(src)
                 new_output = get_normal(output, label)
-                if i == 0:
+                if i == 0 or len(lst_emb) == 0:
                     lst_emb = new_output
-                else:
+                elif new_output is not None:
                     lst_emb = torch.cat((lst_emb, new_output), dim=0)
                 center = center.to(self.device)
                 dist = torch.sum((output - center) ** 2, dim=1)
