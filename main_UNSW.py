@@ -17,7 +17,7 @@ def arg_parser():
     parser.add_argument('--dataset_dir', help='please choose dataset directory', default='./UNSW/Datasets/NUSW_small.csv')
     parser.add_argument('--out_dim', help='output dimensions', default=128)
     parser.add_argument('--lr', help='learning rate', default=0.001)
-    parser.add_argument('--device', help='device cpu or cuda', default='cuda:1')
+    parser.add_argument('--device', help='device cpu or cuda', default='cuda:0')
     parser.add_argument('--dataset', help='name of dataset', default='NUSW_small')
     parser.add_argument('--r_ad_alpha', help='hyper-parameter for the reward of anomaly detection', default=1)
     parser.add_argument('--r_cl_alpha', help='hyper-parameter for the reward of anomaly classification', default=10)
