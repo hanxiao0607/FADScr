@@ -167,7 +167,7 @@ class RAD(object):
         for i_iterator in range(self.max_iterators):
             if i_iterator == 0:
                 df_seen, df_seen_eval, df_unseen_pseudo, seen_f1_ad, seen_f1, hard_sample, seen_prob = prototrainer.training_first(df_seen, df_unseen, df_sup, test_x, test_y)
-                prototrainer.training_baseline(df_seen, df_seen_eval, df_unseen, test_x, test_y)
+                # prototrainer.training_baseline(df_seen, df_seen_eval, df_unseen, test_x, test_y)
                 df_selected = pd.DataFrame()
             else:
                 df_seen, df_seen_eval, df_unseen_pseudo, df_selected, seen_f1_ad, seen_f1, hard_sample, seen_prob = \

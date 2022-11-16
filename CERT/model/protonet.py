@@ -671,8 +671,8 @@ class ProtoTrainer(object):
         print('Anomaly Detection AUC-PR: {:.5f}'.format(average_precision_score(test_true_ab, test_pred_ab)))
         if final:
             print('Anomaly Detection FPR-AT-95-TPR: {:.5f}'.format(utils.getfpr95tpr(y_true=test_true_ab, dist=test_result['y_normal'])))
-        if len(df_selected) > 0:
-            print(df_selected.groupby(['y_pred', 'y_true']).count())
+        # if len(df_selected) > 0:
+        #     print(df_selected.groupby(['y_pred', 'y_true']).count())
 
 
 

@@ -13,7 +13,7 @@ def arg_parser():
     :return:
     """
     parser = ArgumentParser()
-    parser.add_argument('--random_seed', help='random seed', default=0)
+    parser.add_argument('--random_seed', help='random seed', default=1)
     parser.add_argument('--dataset_dir', help='please choose dataset directory', default='./CERT/Datasets/CERT52_small.csv')
     parser.add_argument('--out_dim', help='output dimensions', default=64)
     parser.add_argument('--lr', help='learning rate', default=0.001)
@@ -49,27 +49,23 @@ def arg_parser():
 
 
 def main():
-    for i in range(0,20):
-        print('='*20)
-        print(f'Results for the random seed: {i}')
-        parser = arg_parser()
-        args = parser.parse_args()
-        options = vars(args)
-        options['random_seed'] = i
-        utils.set_seed(options['random_seed'])
+    parser = arg_parser()
+    args = parser.parse_args()
+    options = vars(args)
+    utils.set_seed(options['random_seed'])
 
-        # splitting dataset
-        seen_x, seen_y, sup_x, sup_y, unseen_x, unseen_y, test_x, test_y, input_dim = utils.preprocessing_CERT_EMB(options)
-        print('Finish preprocessing')
-        options['input_dim'] = input_dim
+    # splitting dataset
+    seen_x, seen_y, sup_x, sup_y, unseen_x, unseen_y, test_x, test_y, input_dim = utils.preprocessing_CERT_EMB(options)
+    print('Finish preprocessing')
+    options['input_dim'] = input_dim
 
-        df_seen = utils.data2df(seen_x, seen_y)
-        df_sup = utils.data2df(sup_x, sup_y)
-        df_unseen = utils.data2df(unseen_x, unseen_y)
+    df_seen = utils.data2df(seen_x, seen_y)
+    df_sup = utils.data2df(sup_x, sup_y)
+    df_unseen = utils.data2df(unseen_x, unseen_y)
 
-        model_rad = rad.RAD(options)
-        print('Initial reinforcement learning model')
-        model_rad.train_rad(df_seen, df_unseen, df_sup, test_x, test_y)
+    model_rad = rad.RAD(options)
+    print('Initial reinforcement learning model')
+    model_rad.train_rad(df_seen, df_unseen, df_sup, test_x, test_y)
 
     print('done')
 
