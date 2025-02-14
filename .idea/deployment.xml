@@ -1,18 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="3090" remoteFilesAllowedToDisappearOnAutoupload="false" showAutoUploadSettingsWarning="false">
+  <component name="PublishConfigData" autoUpload="Always" remoteFilesAllowedToDisappearOnAutoupload="false" showAutoUploadSettingsWarning="false">
     <serverData>
-      <paths name="2080">
+      <paths name="3090 (2)">
         <serverdata>
           <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="3090">
-        <serverdata>
-          <mappings>
-            <mapping deploy="/FADS_Star" local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/FADScr" local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>
